@@ -310,7 +310,7 @@ namespace ServerApplication
                     //////**********************Receive Resource File from Instrcutor and Put them in Seperate Folders*************************************************///                    
                     else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
                     {
-                        Console.WriteLine("Server is Receiving Project Files Created by Instructor");  //Ana
+                        Console.WriteLine("Server is Receiving Project Files Created by the Instructor");  //Ana
                         string StuRepo = "Resource_" + Curr_StuID.ToString();
                         string PATH = "..\\server\\" + StuRepo;
                         //Directory.CreateDirectory(PATH);
@@ -342,6 +342,9 @@ namespace ServerApplication
                                 path = Path.Combine(SubPath[2], filename);
                                 break;
                             case ".png":
+                                path = Path.Combine(SubPath[3], filename);
+                                break;
+                            case ".jpg":
                                 path = Path.Combine(SubPath[3], filename);
                                 break;
                             case ".mp4":
