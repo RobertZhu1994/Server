@@ -2,10 +2,9 @@
 using System.Net.Sockets;
 using System.Net;
 using System.IO;
-using System.Threading;
 using System.Text;
 using System.Collections.Generic;
-using System.Text.RegularExpressions;
+using System.IO.Compression;
 
 namespace ServerApplication
 {
@@ -131,8 +130,8 @@ namespace ServerApplication
         //private static byte[] result = new byte[1024];
         public void ServerStart()
         {
-            //IPAddress ip = IPAddress.Parse("127.0.0.1");
-            IPAddress ip = IPAddress.Parse("10.0.1.118");
+            IPAddress ip = IPAddress.Parse("127.0.0.1");
+            //IPAddress ip = IPAddress.Parse("10.0.1.118");
             serverSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             serverSocket.Bind(new IPEndPoint(ip, myProt));
             serverSocket.Listen(5);
@@ -141,7 +140,7 @@ namespace ServerApplication
         }
         private static void ListenClientConnect()
         {
-            int Curr_StuID=-1;      //Current StuID;
+            int Curr_StuID=-2;      //Current StuID;
             while (true)
             {
                 Socket myClientSocket = serverSocket.Accept();
@@ -168,13 +167,28 @@ namespace ServerApplication
                     //StuID.Add("");
                     //StuID.Add("");
                     //Correspond StuID to ip Address
-                    /*
-                    switch("myClientSocket.RemoteEndPoint.ToString()")
-                        case :
-                        StuId
-                        break;
-                        case :
-                        break;
+
+                    switch (myClientSocket.RemoteEndPoint.ToString())
+                    {
+                        case "10.0.1.129"://ZIYI
+                            Curr_StuID = -1;
+                            Console.WriteLine("Receive from Instrctor");
+                            break;
+                        case "10.0.1.27"://Surface 1
+                            Curr_StuID = 0;
+                            Console.WriteLine("Receive from Student with ID 0");
+                            break;
+                        case "10.0.1.34": //Surface 2 ziyi's surface
+                            Curr_StuID = 1;
+                            Console.WriteLine("Receive from Student with ID 1");
+                            break;
+                        case "10.0.1.17":
+                            Curr_StuID = 2;
+                            Console.WriteLine("Receive from Student with ID 2");
+                            break;
+                        default:
+                            break;
+                    }
                     //Curr_StuID = StuID.IndexOf(myClientSocket.RemoteEndPoint.ToString());
                     //Console.WriteLine("receive from client {0} message {1}", Curr_StuID,yEncoding.ASCII.GetString(result, 0, ReceiveNum));
                      //******************************"Will Change Later After Determine IP Address"***************************////
@@ -185,7 +199,7 @@ namespace ServerApplication
                     ///************************Receive Comment Msg**********************************//////
                     if (filename.Contains("M:"))
                     {
-                        Console.WriteLine("This connection is trasmitting pure message");
+                        Console.WriteLine("Server is Receiving Message");  //Ana
                         //string[] sArray = (new char[2] { ':', '_' });
                         char[] delimiter = { ':', '_' };
                         string[] sArray = filename.Split(delimiter);
@@ -197,19 +211,19 @@ namespace ServerApplication
                         //path = "..\\xml\\Stu" + sArray[1] + ".xml";
                         //path = "..\\xml\\Stu.xml";
                         path = "..\\server\\xml\\Stu.xml";
-                        Console.WriteLine("FileName" + path);
+                        //Console.WriteLine("FileName" + path);
                         System.Xml.Serialization.XmlSerializer writer;
                         System.Xml.Serialization.XmlSerializer reader;
-                        
+
                         //********************Write to seperate students files********************************//
                         if (!File.Exists(path))
                         {
                             var wfile = new System.IO.StreamWriter(path);
                             var book = new Book();
-          
+
                             book.BookAdd(recv, StuId, Step);
                             writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                            writer.Serialize(wfile, book); 
+                            writer.Serialize(wfile, book);
                             wfile.Close();
                             //book.print();
                         }
@@ -225,7 +239,7 @@ namespace ServerApplication
                             int index = Convert.ToInt32(Step);
                             int stuid = Convert.ToInt32(StuId);
                             if (filename.Contains("Reply"))
-                                book.ReplyComment(recv,index, stuid);
+                                book.ReplyComment(recv, index, stuid);
                             else
                                 book.BookAdd(recv, StuId, Step);
 
@@ -242,6 +256,8 @@ namespace ServerApplication
                     ///************************Receive Upvote**********************************//////
                     else if (filename.Contains("Up:"))
                     {
+
+                        Console.WriteLine("Server is Receiving Message");  //Ana
                         char[] delimiter = { ':' };   //Up:Index
                         string[] sArray = filename.Split(delimiter);
                         int index = Convert.ToInt32(sArray[1]);
@@ -268,6 +284,7 @@ namespace ServerApplication
                     //////********************** Receive Pin Msg *************************************************///  
                     else if (filename.Contains("PIN:"))
                     {
+                        Console.WriteLine("Server is Receiving Pin Message Request");  //Ana
                         char[] delimiter = { ':' };   //Up:Index
                         string[] sArray = filename.Split(delimiter);
                         int index = Convert.ToInt32(sArray[1]);
@@ -290,9 +307,10 @@ namespace ServerApplication
                         //book.print();
                     }
 
-                    //////**********************Receive Resource File and Put them in Seperate Folders*************************************************///                    
-                    else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj")|| filename.Contains("xml") || filename.Contains("mp4")|| filename.Contains("png"))
+                    //////**********************Receive Resource File from Instrcutor and Put them in Seperate Folders*************************************************///                    
+                    else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
                     {
+                        Console.WriteLine("Server is Receiving Project Files Created by Instructor");  //Ana
                         string StuRepo = "Resource_" + Curr_StuID.ToString();
                         string PATH = "..\\server\\" + StuRepo;
                         //Directory.CreateDirectory(PATH);
@@ -305,13 +323,13 @@ namespace ServerApplication
                         {
                             Directory.CreateDirectory(PATH);
                             for (int i = 0; i < FileFolders.Length; i++)
-                            { 
+                            {
                                 Directory.CreateDirectory(SubPath[i]);
                             }
                         }
 
                         FileStream fs;
-                        
+
                         switch (Path.GetExtension(filename))
                         {
                             case ".wav":
@@ -349,11 +367,14 @@ namespace ServerApplication
                     //**********************Send  Mp4 / Pic/ Voice File and comment back to the client*************************************************///             
                     else if (filename.Contains("Request"))
                     {
-                        path = "..\\server\\xml\\Stu.xml";
-                        Console.WriteLine(filename);
+
+                        //Console.WriteLine(filename);
                         //**********************************Client Ask For Comment*********************************//
+
                         if (filename.Contains("_C:"))
                         {
+                            Console.WriteLine("Student {0} is Requesting for Recently Posted Messages", Curr_StuID);  //Ana
+                            path = "..\\server\\xml\\Stu.xml";
                             if (!File.Exists(path))
                             {
                                 System.Xml.Serialization.XmlSerializer writer;
@@ -362,21 +383,83 @@ namespace ServerApplication
                                 writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
                                 writer.Serialize(wfile, book);
                                 wfile.Close();
-                                Console.WriteLine("created file");
+                                //Console.WriteLine("created file");
                             }
                             myClientSocket.SendFile(path);
-                            Console.WriteLine("successfully sent");
+                            //Console.WriteLine("successfully sent");
                         }
 
-                        //*********************************Client Ask For file*********************************///
+                        //*********************************Client Ask For File*********************************///
+                        //*********************Compress all the files in the directory******************************//
                         else if (filename.Contains("_F:"))
                         {
-
+                            Console.WriteLine("Student {0} is Requesting for Uploaded AR Prject", Curr_StuID);  //Ana
+                            //Zip File folder first
+                            string startPath = "..\\server\\Resource_-1";
+                            string zipPath = "..\\server\\TransmitToClient.zip";
+                            if (File.Exists(zipPath))  //Delete Previous ZipFile
+                                File.Delete(zipPath);
+                            ZipFile.CreateFromDirectory(startPath, zipPath);
+                            path = zipPath;
+                            myClientSocket.SendFile(path);
+                            File.Delete(zipPath);
+                            //Console.WriteLine("successfully sent");
                         }
 
                     }
-                    
+                    //**********************Receive  commited Files from the client*************
+                    else if (filename.Contains("zip"))
+                    {
+                        Console.WriteLine("Receiving commited File {0} from Student", Curr_StuID);  //Ana
+                        //path = "..\\server\\" + filename;
+                        string FolderName = "..\\server\\Contribution\\";
+                        if (!Directory.Exists(FolderName))
+                            Directory.CreateDirectory(FolderName);
+                        path = FolderName + "Contribution_" + Curr_StuID.ToString()+".zip";
+                        string zipPath = path;
+                        //string extractPath = Path.Combine("..\\server", "Contribution_" + Path.GetFileNameWithoutExtension(path));
+                        //Console.WriteLine("Receive Contribution File {0} from Student", extractPath);
+                        if (File.Exists(zipPath))
+                            File.Delete(zipPath);
 
+                        FileStream fss = new FileStream(path, FileMode.Create);
+                        var buffer = new byte[1024];
+                        int bytesRead;
+                        while ((bytesRead = myClientSocket.Receive(buffer)) > 0)
+                        {
+                            fss.Write(buffer, 0, bytesRead);
+                            fss.Flush();
+                        }
+                        fss.Close();
+                        /*
+                        if (Directory.Exists(extractPath))
+                            Directory.Delete(extractPath, true);
+                        ZipFile.ExtractToDirectory(zipPath, extractPath);
+                        if (File.Exists(zipPath))
+                            File.Delete(zipPath);
+                        */
+                    }
+
+                    //*****Instructor is fetching the files form the cloud****************//
+                    else if (filename.Contains("InFetch"))
+                    {
+                        Console.WriteLine("Instructor Request to see the Student's contribution"); //Ana
+                        //The instructor has to decompress itself
+                        //Send All the compressed files
+                        string FolderName = "..\\server\\Contribution\\";
+                        string[] fileNames = Directory.GetFiles(FolderName);
+                        
+                        //Zip File folder first
+                        string startPath = FolderName;
+                        string zipPath = "..\\server\\StuCommit.zip";
+                        if (File.Exists(zipPath))  //Delete Previous ZipFile
+                            File.Delete(zipPath);
+                        ZipFile.CreateFromDirectory(startPath, zipPath);
+                        path = zipPath;
+                        myClientSocket.SendFile(path);
+                        File.Delete(zipPath);
+                        //Console.WriteLine("successfully sent");
+                    }
                 }
                 catch (Exception ex)
                 {
