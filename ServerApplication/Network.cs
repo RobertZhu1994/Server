@@ -134,8 +134,8 @@ namespace ServerApplication
             IPAddress ip = IPAddress.Parse("127.0.0.1");
             TcpListener serverSocket=new TcpListener(ip,myProt);
             serverSocket.Start();
-            int counter=0;
-            Console.WriteLine("Start monitoring {0} successfully", serverSocket.LocalEndPoint.ToString());
+            //int counter=0;
+            Console.WriteLine("Start monitoring {0} successfully", ((IPEndPoint)serverSocket.LocalEndpoint).Address.ToString());
             while(true)
             {
                 /*
@@ -147,18 +147,19 @@ namespace ServerApplication
                 */
                 TcpClient tcpClient=serverSocket.AcceptTcpClient();
                 Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpListener.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpListener.LocalEndpoint).Port.ToString());
-                switch(((IPEndPoint)tcpListener.LocalEndpoint).Port.ToString())
+                switch(((IPEndPoint)serverSocket.LocalEndpoint).Port.ToString())
                 {
                     case "5000":        //Contribution
                         ThreadPool.QueueUserWorkItem(new WaitCallback(HandleFileConnection),tcpClient);
+                        break;
                     case "8000":        //Message
                         ThreadPool.QueueUserWorkItem(new WaitCallback(HandleMsgConnection),tcpClient);
+                        break;
+                    default:
+                        break;
                 }
-
             }
-            
-            
-            
+       
         }
         /*
         class ConnectionThread
@@ -172,7 +173,7 @@ namespace ServerApplication
             }
         }
         */
-        private static viod HandleFileConnection(object myclient)
+        private static void HandleFileConnection(object myclient)
         {
 
 
@@ -182,7 +183,7 @@ namespace ServerApplication
         {
             int Curr_StuID=-2;      //Current StuID;
 
-            //counter+=1;
+            //counter += 1;
             //Socket myClientSocket = serverSocket.Accept();
             try
             {
@@ -202,38 +203,37 @@ namespace ServerApplication
 
 
 
-                //******************************"Will Change Later After Determine IP Address"***************************////
-                //Initialize IP address;
-                //StuID.Add("");
-                //StuID.Add("");
-                //Correspond StuID to ip Address
+                //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
+                //INITIALIZE IP ADDRESS;
+                //STUID.ADD("");
+                //STUID.ADD("");
+                //CORRESPOND STUID TO IP ADDRESS
                 /*
-                switch (myClientSocket.RemoteEndPoint.Address.ToString())
+                SWITCH (MYCLIENTSOCKET.REMOTEENDPOINT.ADDRESS.TOSTRING())
                 {
-                    case "10.0.1.129"://ZIYI
-                        Curr_StuID = -1;
-                        Console.WriteLine("Receive from Instrctor");
-                        break;
-                    case "10.0.1.27"://Surface 1
-                        Curr_StuID = 0;
-                        Console.WriteLine("Receive from Student with ID 0");
-                        break;
-                    case "10.0.1.34": //Surface 2 ziyi's surface
-                        Curr_StuID = 1;
-                        Console.WriteLine("Receive from Student with ID 1");
-                        break;
-                    case "10.0.1.17":
-                        Curr_StuID = 2;
-                        Console.WriteLine("Receive from Student with ID 2");
-                        break;
-                    default:
-                        break;
+                    CASE "10.0.1.129"://ZIYI
+                        CURR_STUID = -1;
+                        CONSOLE.WRITELINE("RECEIVE FROM INSTRCTOR");
+                        BREAK;
+                    CASE "10.0.1.27"://SURFACE 1
+                        CURR_STUID = 0;
+                        CONSOLE.WRITELINE("RECEIVE FROM STUDENT WITH ID 0");
+                        BREAK;
+                    CASE "10.0.1.34": //SURFACE 2 ZIYI'S SURFACE
+                        CURR_STUID = 1;
+                        CONSOLE.WRITELINE("RECEIVE FROM STUDENT WITH ID 1");
+                        BREAK;
+                    CASE "10.0.1.17":
+                        CURR_STUID = 2;
+                        CONSOLE.WRITELINE("RECEIVE FROM STUDENT WITH ID 2");
+                        BREAK;
+                    DEFAULT:
+                        BREAK;
                 }
                 */
-                //Curr_StuID = StuID.IndexOf(myClientSocket.RemoteEndPoint.ToString());
-                //Console.WriteLine("receive from client {0} message {1}", Curr_StuID,yEncoding.ASCII.GetString(result, 0, ReceiveNum));
-                    //******************************"Will Change Later After Determine IP Address"***************************////
-
+                //CURR_STUID = STUID.INDEXOF(MYCLIENTSOCKET.REMOTEENDPOINT.TOSTRING());
+                //CONSOLE.WRITELINE("RECEIVE FROM CLIENT {0} MESSAGE {1}", CURR_STUID,YENCODING.ASCII.GETSTRING(RESULT, 0, RECEIVENUM));
+                    //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
 
                 Console.WriteLine("receive from client {0} message {1}", myClientSocket.RemoteEndPoint.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
 
