@@ -146,8 +146,8 @@ namespace ServerApplication
                 }
                 */
                 TcpClient tcpClient=serverSocket.AcceptTcpClient();
-                Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpListener.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpListener.LocalEndpoint).Port.ToString());
-                switch(((IPEndPoint)serverSocket.LocalEndpoint).Port.ToString())
+                Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
+                switch(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString())
                 {
                     case "5000":        //Contribution
                         ThreadPool.QueueUserWorkItem(new WaitCallback(HandleFileConnection),tcpClient);
