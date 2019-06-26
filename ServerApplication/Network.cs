@@ -193,12 +193,14 @@ namespace ServerApplication
                 string path;
                 string recv, StuId, Step;
 
-
+                TcpClient typed = (TcpClient)myclient;
+                NetworkStream ns = typed.GetStream();
+                //NetworkStream ns= (TcpClient)myclient.GetStream();
                 ////**********************Receive file name in string*********************************/////////////
-                int length_received = myClientSocket.Receive(len, 4, SocketFlags.None);
+                int length_received = ns.Read(len, 0,4);
                 int length = BitConverter.ToInt32(len, 0);
                 Console.WriteLine("Send {0} bytes", length);
-                int ReceiveNum = myClientSocket.Receive(result, length, SocketFlags.None);
+                int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
 
 
