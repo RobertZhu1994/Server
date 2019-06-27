@@ -400,7 +400,7 @@ namespace ServerApplication
                     fs = new FileStream(path, FileMode.Create);
                     var buffer = new byte[1024];
                     int bytesRead;
-                    while ((bytesRead = ns.Read(buffer,9,buffer.Length)) > 0)
+                    while ((bytesRead = ns.Read(buffer,0,buffer.Length)) > 0)
                     {
                         fs.Write(buffer, 0, bytesRead);
                         fs.Flush();
@@ -431,7 +431,7 @@ namespace ServerApplication
                             wfile.Close();
                             //Console.WriteLine("created file");
                         }
-                        myClientSocket.SendFile(path);
+                        myclient.Client.SendFile(path);
                         //Console.WriteLine("successfully sent");
                     }
 
@@ -471,7 +471,7 @@ namespace ServerApplication
                     FileStream fss = new FileStream(path, FileMode.Create);
                     var buffer = new byte[1024];
                     int bytesRead;
-                    while ((bytesRead = myClientSocket.Receive(buffer)) > 0)
+                    while ((bytesRead = ns.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         fss.Write(buffer, 0, bytesRead);
                         fss.Flush();
@@ -502,7 +502,7 @@ namespace ServerApplication
                         File.Delete(zipPath);
                     ZipFile.CreateFromDirectory(startPath, zipPath);
                     path = zipPath;
-                    myClientSocket.SendFile(path);
+                    myclient.Client.SendFile(path);
                     File.Delete(zipPath);
                     //Console.WriteLine("successfully sent");
                 }
