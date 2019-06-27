@@ -179,10 +179,11 @@ namespace ServerApplication
 
 
         }
-        private static void HandleMsgConnection(object myclient)
+        private static void HandleMsgConnection(object obj)
         {
             int Curr_StuID=-2;      //Current StuID;
-
+            TcpClient myclient = (TcpClient)obj;
+            NetworkStream ns = myclient.GetStream();
             //counter += 1;
             //Socket myClientSocket = serverSocket.Accept();
             try
@@ -193,8 +194,7 @@ namespace ServerApplication
                 string path;
                 string recv, StuId, Step;
 
-                TcpClient typed = (TcpClient)myclient;
-                NetworkStream ns = typed.GetStream();
+
                 //NetworkStream ns= (TcpClient)myclient.GetStream();
                 ////**********************Receive file name in string*********************************/////////////
                 int length_received = ns.Read(len, 0,4);
@@ -237,7 +237,7 @@ namespace ServerApplication
                 //CONSOLE.WRITELINE("RECEIVE FROM CLIENT {0} MESSAGE {1}", CURR_STUID,YENCODING.ASCII.GETSTRING(RESULT, 0, RECEIVENUM));
                     //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
 
-                Console.WriteLine("receive from client {0} message {1}", myClientSocket.RemoteEndPoint.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
+                Console.WriteLine("receive from client {0} message {1}", myclient.Client.RemoteEndPoint.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
 
                 ///************************Receive Comment Msg**********************************//////
                 if (filename.Contains("M:"))
@@ -400,7 +400,7 @@ namespace ServerApplication
                     fs = new FileStream(path, FileMode.Create);
                     var buffer = new byte[1024];
                     int bytesRead;
-                    while ((bytesRead = myClientSocket.Receive(buffer)) > 0)
+                    while ((bytesRead = ns.Read(buffer,9,buffer.Length)) > 0)
                     {
                         fs.Write(buffer, 0, bytesRead);
                         fs.Flush();
@@ -447,7 +447,7 @@ namespace ServerApplication
                             File.Delete(zipPath);
                         ZipFile.CreateFromDirectory(startPath, zipPath);
                         path = zipPath;
-                        myClientSocket.SendFile(path);
+                        myclient.Client.SendFile(path);
                         File.Delete(zipPath);
                         //Console.WriteLine("successfully sent");
                     }
@@ -510,10 +510,12 @@ namespace ServerApplication
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                myClientSocket.Shutdown(SocketShutdown.Both);
-                myClientSocket.Close();
+                //myclient.Shutdown(SocketShutdown.Both);
+                ns.Close();
+                myclient.Close();
             }
-            myClientSocket.Close();
+            ns.Close();
+            myclient.Close();
             Console.WriteLine("disconnected");
             
         }
