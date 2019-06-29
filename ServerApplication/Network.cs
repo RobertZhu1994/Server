@@ -125,7 +125,12 @@ namespace ServerApplication
         private static int myProt = 5500;   
         public static Network instance = new Network();
         public static List<string> StuID;     //Initialized Later;
-        
+
+        //Dictionary<int, TcpClient> list_clients = new Dictionary<int, TcpClient>();
+        Dictionary<string, TcpClient> list_clients = new Dictionary<string, TcpClient>();
+        int count=0;
+        private readonly object _lock = new object();
+
 
         //Socket[] Clients = new Socket[5];
         //private static byte[] result = new byte[1024];
@@ -147,7 +152,10 @@ namespace ServerApplication
                 */
                 TcpClient tcpClient=serverSocket.AcceptTcpClient();
                 Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
-                switch(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString())
+
+
+                /*
+                switch (((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString())
                 {
                     case "5000":        //Contribution
                         ThreadPool.QueueUserWorkItem(new WaitCallback(HandleFileConnection),tcpClient);
@@ -158,6 +166,7 @@ namespace ServerApplication
                     default:
                         break;
                 }
+                */
             }
        
         }
@@ -177,6 +186,10 @@ namespace ServerApplication
         {
 
 
+
+        }   
+        private static void Broadcast()                 //Broadcast to all connected client in list_clients
+        {
 
         }
         private static void HandleMsgConnection(object obj)
@@ -202,7 +215,7 @@ namespace ServerApplication
                 Console.WriteLine("Send {0} bytes", length);
                 int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
-
+                Console.WriteLine("receive from client {0} message {1}", myclient.Client.RemoteEndPoint.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
 
 
                 //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
@@ -235,9 +248,17 @@ namespace ServerApplication
                 */
                 //CURR_STUID = STUID.INDEXOF(MYCLIENTSOCKET.REMOTEENDPOINT.TOSTRING());
                 //CONSOLE.WRITELINE("RECEIVE FROM CLIENT {0} MESSAGE {1}", CURR_STUID,YENCODING.ASCII.GETSTRING(RESULT, 0, RECEIVENUM));
-                    //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
+                //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
+                if (filename.Contains("Enter:"))
+                {
+                    lock (_lock)
+                    {
 
-                Console.WriteLine("receive from client {0} message {1}", myclient.Client.RemoteEndPoint.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
+                    }
+                }
+                if (filename.Contains("Leave:"))
+                {
+                }
 
                 ///************************Receive Comment Msg**********************************//////
                 if (filename.Contains("M:"))
@@ -510,7 +531,7 @@ namespace ServerApplication
             catch (Exception ex)
             {
                 Console.WriteLine(ex.Message);
-                //myclient.Shutdown(SocketShutdown.Both);
+                myclient.Client.Shutdown(SocketShutdown.Both);
                 ns.Close();
                 myclient.Close();
             }
