@@ -127,9 +127,10 @@ namespace ServerApplication
         public static List<string> StuID;     //Initialized Later;
 
         //Dictionary<int, TcpClient> list_clients = new Dictionary<int, TcpClient>();
-        Dictionary<string, TcpClient> list_clients = new Dictionary<string, TcpClient>();
+        static Dictionary<string, TcpClient> list_clients = new Dictionary<string, TcpClient>();
         int count=0;
-        private readonly object _lock = new object();
+        static private readonly object _lock = new object();        //Lock to protect list_client
+        static private readonly object _lockClient = new object();  //Lock to protect each TCPClient socket
 
 
         //Socket[] Clients = new Socket[5];
@@ -152,7 +153,7 @@ namespace ServerApplication
                 */
                 TcpClient tcpClient=serverSocket.AcceptTcpClient();
                 Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
-
+                ThreadPool.QueueUserWorkItem(new WaitCallback(HandleConnection), tcpClient);
 
                 /*
                 switch (((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString())
@@ -192,7 +193,7 @@ namespace ServerApplication
         {
 
         }
-        private static void HandleMsgConnection(object obj)
+        private static void HandleConnection(object obj)
         {
             int Curr_StuID=-2;      //Current StuID;
             TcpClient myclient = (TcpClient)obj;
@@ -215,7 +216,7 @@ namespace ServerApplication
                 Console.WriteLine("Send {0} bytes", length);
                 int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
-                Console.WriteLine("receive from client {0} message {1}", myclient.Client.RemoteEndPoint.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
+                Console.WriteLine("receive from client {0} message {1}", ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
 
 
                 //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
@@ -254,12 +255,42 @@ namespace ServerApplication
                     lock (_lock)
                     {
 
+                        string IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                        if (list_clients.ContainsKey(IPIndex))
+                        {
+                            Console.WriteLine("Previous connection not properly closed");
+                            //list_clients.Remove(IPIndex);
+                        }
+                        else
+                            list_clients.Add(IPIndex, myclient);
                     }
+                    while (true)
+                    {
+                        if Receive information contains leave
+                    }
+
+
                 }
                 if (filename.Contains("Leave:"))
                 {
+                    lock (_lock)
+                    {
+                        string IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                        if (!list_clients.ContainsKey(IPIndex))
+                            Console.WriteLine("Trying to close a session improperly");
+                        else
+                            list_clients.Remove(IPIndex);
+                        myclient.Client.Shutdown(SocketShutdown.Both);
+                        ns.Close();
+                        myclient.Close();
+                        Console.WriteLine(IPIndex+"Left the Chat room");
+                    }
+
                 }
 
+
+
+                //***********************************Long Connection*****************************//
                 ///************************Receive Comment Msg**********************************//////
                 if (filename.Contains("M:"))
                 {
@@ -370,6 +401,10 @@ namespace ServerApplication
                     wfile.Close();
                     //book.print();
                 }
+                
+                //***********************************Long Connection*****************************//
+
+
 
                 //////**********************Receive Resource File from Instrcutor and Put them in Seperate Folders*************************************************///                    
                 else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
@@ -429,6 +464,10 @@ namespace ServerApplication
 
                     fs.Close();
                     //Console.WriteLine("Sucessfully write file");}
+                    myclient.Client.Shutdown(SocketShutdown.Both);
+                    ns.Close();
+                    myclient.Close();
+                    Console.WriteLine("disconnected");
                 }
 
                 //**********************Send  Mp4 / Pic/ Voice File and comment back to the client*************************************************///             
@@ -472,7 +511,10 @@ namespace ServerApplication
                         File.Delete(zipPath);
                         //Console.WriteLine("successfully sent");
                     }
-
+                    myclient.Client.Shutdown(SocketShutdown.Both);
+                    ns.Close();
+                    myclient.Close();
+                    Console.WriteLine("disconnected");
                 }
                 //**********************Receive  commited Files from the client*************
                 else if (filename.Contains("zip"))
@@ -498,6 +540,10 @@ namespace ServerApplication
                         fss.Flush();
                     }
                     fss.Close();
+                    myclient.Client.Shutdown(SocketShutdown.Both);
+                    ns.Close();
+                    myclient.Close();
+                    Console.WriteLine("disconnected");
                     /*
                     if (Directory.Exists(extractPath))
                         Directory.Delete(extractPath, true);
@@ -526,18 +572,25 @@ namespace ServerApplication
                     myclient.Client.SendFile(path);
                     File.Delete(zipPath);
                     //Console.WriteLine("successfully sent");
+                    myclient.Client.Shutdown(SocketShutdown.Both);
+                    ns.Close();
+                    myclient.Close();
+                    Console.WriteLine("disconnected");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.Message);
+                Console.WriteLine("Total Exception"+ex.Message);
                 myclient.Client.Shutdown(SocketShutdown.Both);
                 ns.Close();
                 myclient.Close();
             }
+            /*
+            myclient.Client.Shutdown(SocketShutdown.Both);
             ns.Close();
             myclient.Close();
             Console.WriteLine("disconnected");
+            */
             
         }
     }
