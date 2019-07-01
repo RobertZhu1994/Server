@@ -191,8 +191,30 @@ namespace ServerApplication
         }   
         private static void Broadcast()                 //Broadcast to all connected client in list_clients
         {
+            byte[] ReadBuffer = new byte[1024];
+            string ACK = "ACK";
+            byte[] writeBuffer = Encoding.ASCII.GetBytes("Refresh" + Environment.NewLine);
+            {
+                foreach (TcpClient c in list_clients.Values)
+                {
+                    try
+                    {
+                        NetworkStream stream = c.GetStream();
+                        stream.Write(writeBuffer, 0, writeBuffer.Length);
 
+                        stream.ReadTimeout = 3000;
+                        stream.Read(ReadBuffer, 0, ACK.Length);
+                        stream.Close();
+                    }
+                    catch (IOException E)
+                    {
+                        Console.WriteLine("This Client Disconnected with some error");
+                        list_clients.Remove()
+                    }
+                }
+            }
         }
+
         private static void HandleConnection(object obj)
         {
             int Curr_StuID=-2;      //Current StuID;
@@ -252,10 +274,12 @@ namespace ServerApplication
                 //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
                 if (filename.Contains("Enter:"))
                 {
+                    string IPIndex;
+                    string Message;
                     lock (_lock)
                     {
 
-                        string IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                        IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
                         if (list_clients.ContainsKey(IPIndex))
                         {
                             Console.WriteLine("Previous connection not properly closed");
@@ -264,13 +288,63 @@ namespace ServerApplication
                         else
                             list_clients.Add(IPIndex, myclient);
                     }
+
+
                     while (true)
                     {
-                        if Receive information contains leave
+                        lock (_lock)                //constantly check if the client is still online
+                        {
+                            if (!list_clients.ContainsKey(IPIndex))
+                            {
+                                Console.WriteLine("Already Disconnected");
+                                myclient.Client.Shutdown(SocketShutdown.Both);
+                                ns.Close();
+                                myclient.Close();
+                                break;
+                            }
+                        }
+                        try
+                        {
+                            var len_array = new byte[sizeof(int)];
+                            var Msg = new byte[1024];
+                            int length_msg = ns.Read(len_array, 0, 4);
+                            int Msg_length = BitConverter.ToInt32(len_array, 0);
+                            Console.WriteLine("Message size is", Msg_length);
+                            int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
+                            Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
+                            Console.WriteLine("receive Message: " + Message);
+                            //Broadcast();
+                            if (Message == "Leave")
+                            {
+                                lock (_lock)
+                                {
+                                    IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                                    if (!list_clients.ContainsKey(IPIndex))
+                                        Console.WriteLine("Trying to close a session improperly");
+                                    else
+                                        list_clients.Remove(IPIndex);
+                                    myclient.Client.Shutdown(SocketShutdown.Both);
+                                    ns.Close();
+                                    myclient.Close();
+                                    Console.WriteLine(IPIndex + "Left the Chat room");
+                                }
+                                break;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine("Message Exception" + ex.Message);
+                            myclient.Client.Shutdown(SocketShutdown.Both);
+                            ns.Close();
+                            myclient.Close();
+                            break;
+                        }
+
                     }
 
 
                 }
+                /*
                 if (filename.Contains("Leave:"))
                 {
                     lock (_lock)
@@ -287,6 +361,7 @@ namespace ServerApplication
                     }
 
                 }
+                */
 
 
 
