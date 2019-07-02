@@ -188,7 +188,13 @@ namespace ServerApplication
 
 
 
-        }   
+        }
+        private void WriteBook()
+        {
+            System.Xml.Serialization.XmlSerializer writer;
+            System.Xml.Serialization.XmlSerializer reader;
+        }
+
         private static void Broadcast()                 //Broadcast to all connected client in list_clients
         {
             byte[] ReadBuffer = new byte[1024];
@@ -208,8 +214,10 @@ namespace ServerApplication
                     }
                     catch (IOException E)
                     {
-                        Console.WriteLine("This Client Disconnected with some error");
-                        list_clients.Remove()
+                        Console.WriteLine("This Client Disconnected with some error and "+E.Message);
+                        string IPIndex = ((IPEndPoint)c.Client.RemoteEndPoint).Address.ToString();
+                        lock(_lock)
+                            list_clients.Remove(IPIndex);
                     }
                 }
             }
@@ -367,7 +375,7 @@ namespace ServerApplication
 
                 //***********************************Long Connection*****************************//
                 ///************************Receive Comment Msg**********************************//////
-                if (filename.Contains("M:"))
+                else if (filename.Contains("M:"))
                 {
                     Console.WriteLine("Server is Receiving Message");  //Ana
                     //string[] sArray = (new char[2] { ':', '_' });
@@ -381,7 +389,12 @@ namespace ServerApplication
                     //path = "..\\xml\\Stu" + sArray[1] + ".xml";
                     //path = "..\\xml\\Stu.xml";
                     path = "..\\server\\xml\\Stu.xml";
-                    //Console.WriteLine("FileName" + path);
+                    string rootpath= "..\\server\\xml";
+                    if (!Directory.Exists(rootpath))
+                    {
+                        DirectoryInfo di = Directory.CreateDirectory(rootpath);
+                    }
+
                     System.Xml.Serialization.XmlSerializer writer;
                     System.Xml.Serialization.XmlSerializer reader;
 
