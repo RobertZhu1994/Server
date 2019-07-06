@@ -124,35 +124,37 @@ namespace ServerApplication
         static Socket serverSocket;
         private static int myProt = 5500;   
         public static Network instance = new Network();
-        public static List<string> StuID;     //Initialized Later;
+        //public static List<string> StuID;     //Initialized Later;
 
         //Dictionary<int, TcpClient> list_clients = new Dictionary<int, TcpClient>();
         static Dictionary<string, TcpClient> list_clients = new Dictionary<string, TcpClient>();
-        int count=0;
+        //int count=0;
         static private readonly object _lock = new object();        //Lock to protect list_client
-        static private readonly object _lockClient = new object();  //Lock to protect each TCPClient socket
-
-
-        //Socket[] Clients = new Socket[5];
-        //private static byte[] result = new byte[1024];
+        //static private readonly object _lockClient = new object();  //Lock to protect each TCPClient socket
+        static Dictionary<string,int> StuId;
         public void ServerStart()
         {
             IPAddress ip = IPAddress.Parse("127.0.0.1");
             TcpListener serverSocket=new TcpListener(ip,myProt);
             serverSocket.Start();
-            //int counter=0;
+            int counter=0;
             Console.WriteLine("Start monitoring {0} successfully", ((IPEndPoint)serverSocket.LocalEndpoint).Address.ToString());
             while(true)
             {
-                /*
-                while(!ListenClientConnect.Pending())
-                {
-                    Thread.Sleep(500);
-
-                }
-                */
+                
                 TcpClient tcpClient=serverSocket.AcceptTcpClient();
                 Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
+                string ClientIP = ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString();
+                if (StuId.ContainsKey(ClientIP))
+                {
+                    Console.WriteLine("Sudent {0} is back online", StuId[ClientIP]);
+                }
+                else {
+                    counter++;
+                    StuId.Add(ClientIP, counter);
+                    Console.WriteLine("New Sudent with ID {0}", StuId[ClientIP]);
+                }
+                
                 ThreadPool.QueueUserWorkItem(new WaitCallback(HandleConnection), tcpClient);
 
                 /*
@@ -189,10 +191,11 @@ namespace ServerApplication
 
 
         }
-        private void WriteBook()
+        private void WriteBook(string msg, long ID, int step )
         {
             System.Xml.Serialization.XmlSerializer writer;
             System.Xml.Serialization.XmlSerializer reader;
+            
         }
 
         private static void Broadcast()                 //Broadcast to all connected client in list_clients
@@ -225,9 +228,10 @@ namespace ServerApplication
 
         private static void HandleConnection(object obj)
         {
-            int Curr_StuID=-2;      //Current StuID;
+            //int Curr_StuID=-2;      //Current StuID;
             TcpClient myclient = (TcpClient)obj;
             NetworkStream ns = myclient.GetStream();
+            string ClientIP = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
             //counter += 1;
             //Socket myClientSocket = serverSocket.Accept();
             try
@@ -236,10 +240,13 @@ namespace ServerApplication
                 var len = new byte[sizeof(int)];
 
                 string path;
-                string recv, StuId, Step;
+                string recv, Step;
 
+                ////*******************Send Student ID to the student**********************************//////////////////
+                int ID = Convert.ToInt32(StuId[ClientIP]);
+                byte[] IDNum = BitConverter.GetBytes(ID);
+                ns.Write(IDNum, 0, 4);
 
-                //NetworkStream ns= (TcpClient)myclient.GetStream();
                 ////**********************Receive file name in string*********************************/////////////
                 int length_received = ns.Read(len, 0,4);
                 int length = BitConverter.ToInt32(len, 0);
@@ -247,7 +254,7 @@ namespace ServerApplication
                 int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
                 Console.WriteLine("receive from client {0} message {1}", ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
-
+                
 
                 //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
                 //INITIALIZE IP ADDRESS;
@@ -322,6 +329,7 @@ namespace ServerApplication
                             Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
                             Console.WriteLine("receive Message: " + Message);
                             //Broadcast();
+                            WriteBook(Message, ID , 0);
                             if (Message == "Leave")
                             {
                                 lock (_lock)
