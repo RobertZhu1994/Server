@@ -191,11 +191,49 @@ namespace ServerApplication
 
 
         }
-        private void WriteBook(string msg, long ID, int step )
+        private void WriteBook(string msg, string ID, string step, string path,bool mode)
         {
             System.Xml.Serialization.XmlSerializer writer;
             System.Xml.Serialization.XmlSerializer reader;
-            
+            string rootpath = "..\\server\\xml";
+            if (!Directory.Exists(rootpath))
+            {
+                DirectoryInfo di = Directory.CreateDirectory(rootpath);
+            }
+            //********************Write to seperate students files********************************//
+            if (!File.Exists(path))
+            {
+                var wfile = new System.IO.StreamWriter(path);
+                var book = new Book();
+
+                book.BookAdd(msg, ID, step);
+                writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                writer.Serialize(wfile, book);
+                wfile.Close();
+                //book.print();
+            }
+            else
+            {
+                /////***********************Read************************///////////
+                reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                System.IO.StreamReader file = new System.IO.StreamReader(path);
+                var book = (Book)reader.Deserialize(file);
+                file.Close();
+
+                ////************************Write comment/reply***********************///////////
+                int index = Convert.ToInt32(step);
+                int stuid = Convert.ToInt32(ID);
+                if (mode==false)            //reply mode
+                    book.ReplyComment(msg, index, stuid);
+                else
+                    book.BookAdd(msg, ID, step);
+
+                writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                var wfile = new System.IO.StreamWriter(path);
+                writer.Serialize(wfile, book);
+                wfile.Close();
+
+            }
         }
 
         private static void Broadcast()                 //Broadcast to all connected client in list_clients
@@ -239,7 +277,7 @@ namespace ServerApplication
                 var result = new byte[1024];
                 var len = new byte[sizeof(int)];
 
-                string path;
+                string path = "..\\server\\xml\\Stu.xml";
                 string recv, Step;
 
                 ////*******************Send Student ID to the student**********************************//////////////////
@@ -327,9 +365,9 @@ namespace ServerApplication
                             Console.WriteLine("Message size is", Msg_length);
                             int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
                             Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
-                            Console.WriteLine("receive Message: " + Message);
+                            Console.WriteLine("Receive Message: " + Message);
                             //Broadcast();
-                            WriteBook(Message, ID , 0);
+                            WriteBook(Message, ID, 0,path);
                             if (Message == "Leave")
                             {
                                 lock (_lock)
@@ -383,66 +421,66 @@ namespace ServerApplication
 
                 //***********************************Long Connection*****************************//
                 ///************************Receive Comment Msg**********************************//////
-                else if (filename.Contains("M:"))
-                {
-                    Console.WriteLine("Server is Receiving Message");  //Ana
-                    //string[] sArray = (new char[2] { ':', '_' });
-                    char[] delimiter = { ':', '_' };
-                    string[] sArray = filename.Split(delimiter);
-                    //Console.WriteLine("after split, {0}, {1}, {2}, {3}",sArray[0],sArray[1],sArray[2], sArray[3]);
-                    StuId = sArray[1];
-                    Step = sArray[2];
-                    recv = sArray[3];
-                    //upvote = sArray[4];
-                    //path = "..\\xml\\Stu" + sArray[1] + ".xml";
-                    //path = "..\\xml\\Stu.xml";
-                    path = "..\\server\\xml\\Stu.xml";
-                    string rootpath= "..\\server\\xml";
-                    if (!Directory.Exists(rootpath))
-                    {
-                        DirectoryInfo di = Directory.CreateDirectory(rootpath);
-                    }
+                //else if (filename.Contains("M:"))
+                //{
+                //    Console.WriteLine("Server is Receiving Message");  //Ana
+                //    //string[] sArray = (new char[2] { ':', '_' });
+                //    char[] delimiter = { ':', '_' };
+                //    string[] sArray = filename.Split(delimiter);
+                //    //Console.WriteLine("after split, {0}, {1}, {2}, {3}",sArray[0],sArray[1],sArray[2], sArray[3]);
+                //    StuId = sArray[1];
+                //    Step = sArray[2];
+                //    recv = sArray[3];
+                //    //upvote = sArray[4];
+                //    //path = "..\\xml\\Stu" + sArray[1] + ".xml";
+                //    //path = "..\\xml\\Stu.xml";
+                //    path = "..\\server\\xml\\Stu.xml";
+                //    //string rootpath= "..\\server\\xml";
+                //    if (!Directory.Exists(rootpath))
+                //    {
+                //        DirectoryInfo di = Directory.CreateDirectory(rootpath);
+                //    }
 
-                    System.Xml.Serialization.XmlSerializer writer;
-                    System.Xml.Serialization.XmlSerializer reader;
+                //    System.Xml.Serialization.XmlSerializer writer;
+                //    System.Xml.Serialization.XmlSerializer reader;
 
-                    //********************Write to seperate students files********************************//
-                    if (!File.Exists(path))
-                    {
-                        var wfile = new System.IO.StreamWriter(path);
-                        var book = new Book();
+                //    //********************Write to seperate students files********************************//
+                //    if (!File.Exists(path))
+                //    {
+                //        var wfile = new System.IO.StreamWriter(path);
+                //        var book = new Book();
 
-                        book.BookAdd(recv, StuId, Step);
-                        writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                        writer.Serialize(wfile, book);
-                        wfile.Close();
-                        //book.print();
-                    }
-                    else
-                    {
-                        /////***********************Read************************///////////
-                        reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                        System.IO.StreamReader file = new System.IO.StreamReader(path);
-                        var book = (Book)reader.Deserialize(file);
-                        file.Close();
+                //        book.BookAdd(recv, StuId, Step);
+                //        writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //        writer.Serialize(wfile, book);
+                //        wfile.Close();
+                //        //book.print();
+                //    }
+                //    else
+                //    {
+                //        /////***********************Read************************///////////
+                //        reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //        System.IO.StreamReader file = new System.IO.StreamReader(path);
+                //        var book = (Book)reader.Deserialize(file);
+                //        file.Close();
 
-                        ////************************Write comment/reply***********************///////////
-                        int index = Convert.ToInt32(Step);
-                        int stuid = Convert.ToInt32(StuId);
-                        if (filename.Contains("Reply"))
-                            book.ReplyComment(recv, index, stuid);
-                        else
-                            book.BookAdd(recv, StuId, Step);
+                //        ////************************Write comment/reply***********************///////////
+                //        int index = Convert.ToInt32(Step);
+                //        int stuid = Convert.ToInt32(StuId);
+                //        if (filename.Contains("Reply"))
+                //            book.ReplyComment(recv, index, stuid);
+                //        else
+                //            book.BookAdd(recv, StuId, Step);
 
-                        writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                        var wfile = new System.IO.StreamWriter(path);
-                        writer.Serialize(wfile, book);
-                        wfile.Close();
-                        //book.print();
-                    }
-                    //myClientSocket.Close();
+                //        writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //        var wfile = new System.IO.StreamWriter(path);
+                //        writer.Serialize(wfile, book);
+                //        wfile.Close();
+                //        //book.print();
+                //    }
+                //    //myClientSocket.Close();
 
-                }
+                //}
 
                 ///************************Receive Upvote**********************************//////
                 else if (filename.Contains("Up:"))
