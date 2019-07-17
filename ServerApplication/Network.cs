@@ -191,8 +191,9 @@ namespace ServerApplication
 
 
         }
-        private void WriteBook(string msg, string ID, string step, string path,bool mode)
+        private static void WriteBook(string msg, string ID, string step, string path,bool mode)
         {
+            
             System.Xml.Serialization.XmlSerializer writer;
             System.Xml.Serialization.XmlSerializer reader;
             string rootpath = "..\\server\\xml";
@@ -367,7 +368,13 @@ namespace ServerApplication
                             Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
                             Console.WriteLine("Receive Message: " + Message);
                             //Broadcast();
-                            WriteBook(Message, ID, 0,path);
+                            char[] delimiter = { ':', '_' };
+                            string[] sArray = filename.Split(delimiter);
+                            if (Message.Contains("ReplyM:"))
+                                WriteBook(sArray[2],ID.ToString(),sArray[1],path,false);
+                            else
+                                WriteBook(sArray[1],ID.ToString(),"-1",path,true);
+
                             if (Message == "Leave")
                             {
                                 lock (_lock)
@@ -544,7 +551,7 @@ namespace ServerApplication
                 else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
                 {
                     Console.WriteLine("Server is Receiving Project Files Created by the Instructor");  //Ana
-                    string StuRepo = "Resource_" + Curr_StuID.ToString();
+                    string StuRepo = "Resource_" + ID.ToString();
                     string PATH = "..\\server\\" + StuRepo;
                     //Directory.CreateDirectory(PATH);
                     string[] FileFolders = { "Audio", "CAD", "Data", "Image", "Video" };
@@ -613,7 +620,7 @@ namespace ServerApplication
 
                     if (filename.Contains("_C:"))
                     {
-                        Console.WriteLine("Student {0} is Requesting for Recently Posted Messages", Curr_StuID);  //Ana
+                        Console.WriteLine("Student {0} is Requesting for Recently Posted Messages", ID);  //Ana
                         path = "..\\server\\xml\\Stu.xml";
                         if (!File.Exists(path))
                         {
@@ -633,7 +640,7 @@ namespace ServerApplication
                     //*********************Compress all the files in the directory******************************//
                     else if (filename.Contains("_F:"))
                     {
-                        Console.WriteLine("Student {0} is Requesting for Uploaded AR Prject", Curr_StuID);  //Ana
+                        Console.WriteLine("Student {0} is Requesting for Uploaded AR Prject", ID);  //Ana
                         //Zip File folder first
                         string startPath = "..\\server\\Resource_-1";
                         string zipPath = "..\\server\\TransmitToClient.zip";
@@ -653,12 +660,12 @@ namespace ServerApplication
                 //**********************Receive  commited Files from the client*************
                 else if (filename.Contains("zip"))
                 {
-                    Console.WriteLine("Receiving commited File {0} from Student", Curr_StuID);  //Ana
+                    Console.WriteLine("Receiving commited File {0} from Student", ID);  //Ana
                     //path = "..\\server\\" + filename;
                     string FolderName = "..\\server\\Contribution\\";
                     if (!Directory.Exists(FolderName))
                         Directory.CreateDirectory(FolderName);
-                    path = FolderName + "Contribution_" + Curr_StuID.ToString()+".zip";
+                    path = FolderName + "Contribution_" + ID.ToString()+".zip";
                     string zipPath = path;
                     //string extractPath = Path.Combine("..\\server", "Contribution_" + Path.GetFileNameWithoutExtension(path));
                     //Console.WriteLine("Receive Contribution File {0} from Student", extractPath);
