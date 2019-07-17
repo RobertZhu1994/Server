@@ -134,7 +134,7 @@ namespace ServerApplication
         static Dictionary<string,int> StuId;
         public void ServerStart()
         {
-            IPAddress ip = IPAddress.Parse("127.0.0.1");
+            IPAddress ip = IPAddress.Parse("127.0.0.1");        //CHANGE
             TcpListener serverSocket=new TcpListener(ip,myProt);
             serverSocket.Start();
             int counter=0;
@@ -146,15 +146,12 @@ namespace ServerApplication
                 Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
                 string ClientIP = ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString();
                 if (StuId.ContainsKey(ClientIP))
-                {
                     Console.WriteLine("Sudent {0} is back online", StuId[ClientIP]);
-                }
                 else {
                     counter++;
                     StuId.Add(ClientIP, counter);
                     Console.WriteLine("New Sudent with ID {0}", StuId[ClientIP]);
                 }
-                
                 ThreadPool.QueueUserWorkItem(new WaitCallback(HandleConnection), tcpClient);
 
                 /*
@@ -187,8 +184,6 @@ namespace ServerApplication
         */
         private static void HandleFileConnection(object myclient)
         {
-
-
 
         }
         private static void WriteBook(string msg, string ID, string step, string path,bool mode)
@@ -242,6 +237,7 @@ namespace ServerApplication
             byte[] ReadBuffer = new byte[1024];
             string ACK = "ACK";
             byte[] writeBuffer = Encoding.ASCII.GetBytes("Refresh" + Environment.NewLine);
+            lock (_lock)
             {
                 foreach (TcpClient c in list_clients.Values)
                 {
@@ -252,14 +248,15 @@ namespace ServerApplication
 
                         stream.ReadTimeout = 3000;
                         stream.Read(ReadBuffer, 0, ACK.Length);
+                        if (ACK == Encoding.ASCII.GetString(ReadBuffer))
+                            Console.WriteLine("Receive Acknowledgement");
                         stream.Close();
                     }
                     catch (IOException E)
                     {
-                        Console.WriteLine("This Client Disconnected with some error and "+E.Message);
+                        Console.WriteLine("This Client Disconnected with some error and "+E.Message);       //Check if students are offline
                         string IPIndex = ((IPEndPoint)c.Client.RemoteEndPoint).Address.ToString();
-                        lock(_lock)
-                            list_clients.Remove(IPIndex);
+                        list_clients.Remove(IPIndex);
                     }
                 }
             }
@@ -267,19 +264,16 @@ namespace ServerApplication
 
         private static void HandleConnection(object obj)
         {
-            //int Curr_StuID=-2;      //Current StuID;
             TcpClient myclient = (TcpClient)obj;
             NetworkStream ns = myclient.GetStream();
             string ClientIP = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
-            //counter += 1;
-            //Socket myClientSocket = serverSocket.Accept();
             try
             {
                 var result = new byte[1024];
                 var len = new byte[sizeof(int)];
 
                 string path = "..\\server\\xml\\Stu.xml";
-                string recv, Step;
+                //string recv, Step;
 
                 ////*******************Send Student ID to the student**********************************//////////////////
                 int ID = Convert.ToInt32(StuId[ClientIP]);
@@ -293,8 +287,6 @@ namespace ServerApplication
                 int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
                 Console.WriteLine("receive from client {0} message {1}", ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
-                
-
                 //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
                 //INITIALIZE IP ADDRESS;
                 //STUID.ADD("");
@@ -337,7 +329,6 @@ namespace ServerApplication
                         if (list_clients.ContainsKey(IPIndex))
                         {
                             Console.WriteLine("Previous connection not properly closed");
-                            //list_clients.Remove(IPIndex);
                         }
                         else
                             list_clients.Add(IPIndex, myclient);
@@ -367,13 +358,17 @@ namespace ServerApplication
                             int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
                             Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
                             Console.WriteLine("Receive Message: " + Message);
-                            //Broadcast();
+                            
                             char[] delimiter = { ':', '_' };
                             string[] sArray = filename.Split(delimiter);
                             if (Message.Contains("ReplyM:"))
                                 WriteBook(sArray[2],ID.ToString(),sArray[1],path,false);
-                            else
+                            else if(Message.Contains("Mssg:"))
                                 WriteBook(sArray[1],ID.ToString(),"-1",path,true);
+                            else
+                                Console.WriteLine("Leaving"+Message);
+                            
+                            Broadcast();        //CHANGE
 
                             if (Message == "Leave")
                             {
@@ -490,7 +485,7 @@ namespace ServerApplication
                 //}
 
                 ///************************Receive Upvote**********************************//////
-                else if (filename.Contains("Up:"))
+                else if (filename.Contains("UP:"))
                 {
 
                     Console.WriteLine("Server is Receiving Message");  //Ana
@@ -544,8 +539,6 @@ namespace ServerApplication
                 }
                 
                 //***********************************Long Connection*****************************//
-
-
 
                 //////**********************Receive Resource File from Instrcutor and Put them in Seperate Folders*************************************************///                    
                 else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
