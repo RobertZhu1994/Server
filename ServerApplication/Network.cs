@@ -131,7 +131,7 @@ namespace ServerApplication
         //int count=0;
         static private readonly object _lock = new object();        //Lock to protect list_client
         //static private readonly object _lockClient = new object();  //Lock to protect each TCPClient socket
-        static Dictionary<string,int> StuId;
+        static Dictionary<string,int> StuId=new Dictionary<string, int>();
         public void ServerStart()
         {
             IPAddress ip = IPAddress.Parse("127.0.0.1");        //CHANGE
@@ -236,7 +236,7 @@ namespace ServerApplication
         {
             byte[] ReadBuffer = new byte[1024];
             string ACK = "ACK";
-            byte[] writeBuffer = Encoding.ASCII.GetBytes("Refresh" + Environment.NewLine);
+            byte[] writeBuffer = Encoding.ASCII.GetBytes("Refresh");
             lock (_lock)
             {
                 foreach (TcpClient c in list_clients.Values)
@@ -250,6 +250,8 @@ namespace ServerApplication
                         stream.Read(ReadBuffer, 0, ACK.Length);
                         if (ACK == Encoding.ASCII.GetString(ReadBuffer))
                             Console.WriteLine("Receive Acknowledgement");
+                        else
+                            Console.WriteLine("Received "+Encoding.ASCII.GetString(ReadBuffer));
                         stream.Close();
                     }
                     catch (IOException E)
@@ -283,7 +285,7 @@ namespace ServerApplication
                 ////**********************Receive file name in string*********************************/////////////
                 int length_received = ns.Read(len, 0,4);
                 int length = BitConverter.ToInt32(len, 0);
-                Console.WriteLine("Send {0} bytes", length);
+                Console.WriteLine("Received {0} bytes of message from client", length);
                 int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
                 Console.WriteLine("receive from client {0} message {1}", ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
@@ -318,7 +320,7 @@ namespace ServerApplication
                 //CURR_STUID = STUID.INDEXOF(MYCLIENTSOCKET.REMOTEENDPOINT.TOSTRING());
                 //CONSOLE.WRITELINE("RECEIVE FROM CLIENT {0} MESSAGE {1}", CURR_STUID,YENCODING.ASCII.GETSTRING(RESULT, 0, RECEIVENUM));
                 //******************************"WILL CHANGE LATER AFTER DETERMINE IP ADDRESS"***************************////
-                if (filename.Contains("Enter:"))
+                if (filename.Contains("ENTER:"))
                 {
                     string IPIndex;
                     string Message;
