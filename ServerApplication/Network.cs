@@ -248,11 +248,11 @@ namespace ServerApplication
 
                         stream.ReadTimeout = 3000;
                         stream.Read(ReadBuffer, 0, ACK.Length);
-                        if (ACK == Encoding.ASCII.GetString(ReadBuffer))
+                        if (ACK == Encoding.ASCII.GetString(ReadBuffer,0, "ACK".Length))
                             Console.WriteLine("Receive Acknowledgement");
                         else
                             Console.WriteLine("Received "+Encoding.ASCII.GetString(ReadBuffer));
-                        stream.Close();
+                        //stream.Close();
                     }
                     catch (IOException E)
                     {
@@ -359,10 +359,10 @@ namespace ServerApplication
                             Console.WriteLine("Message size is", Msg_length);
                             int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
                             Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
-                            Console.WriteLine("Receive Message: " + Message);
+                            Console.WriteLine("Receive Message: " + Message.ToString());
                             
                             char[] delimiter = { ':', '_' };
-                            string[] sArray = filename.Split(delimiter);
+                            string[] sArray = Message.Split(delimiter);
                             if (Message.Contains("ReplyM:"))
                                 WriteBook(sArray[2],ID.ToString(),sArray[1],path,false);
                             else if(Message.Contains("Mssg:"))
