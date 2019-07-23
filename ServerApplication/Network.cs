@@ -353,7 +353,7 @@ namespace ServerApplication
                             }
                             try
                             {
-                                ns.ReadTimeout = 6000;      //Costantly block until receive any message;
+                                ns.ReadTimeout = 5000;      //Costantly block until receive any message;
                                 var len_array = new byte[sizeof(int)];
                                 var Msg = new byte[1024];
                                 int length_msg = ns.Read(len_array, 0, 4);
@@ -390,11 +390,11 @@ namespace ServerApplication
                                 }
                                 Broadcast();        //CHANGE
                             }
-                            catch (IOException ex)
-                            {
+                            catch (IOException ex)      //Send keep alive packet
+                        {
                                 //Console.WriteLine("Message Timeout Exception" + ex.Message);
  
-                                //Send keep alive packet
+                                
                                 byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
                                 try
                                 {
@@ -409,6 +409,10 @@ namespace ServerApplication
                                     myclient.Client.Shutdown(SocketShutdown.Both);
                                     ns.Close();
                                     myclient.Close();
+                                    lock (_lock)                
+                                    {
+                                        list_clients.Remove(IPIndex);
+                                    }
                                     break;
                                 }
                             }
