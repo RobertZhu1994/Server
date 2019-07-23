@@ -285,7 +285,7 @@ namespace ServerApplication
                 ////**********************Receive file name in string*********************************/////////////
                 int length_received = ns.Read(len, 0,4);
                 int length = BitConverter.ToInt32(len, 0);
-                Console.WriteLine("Received {0} bytes of message from client", length);
+                //Console.WriteLine("Received {0} bytes of message from client", length);
                 int ReceiveNum = ns.Read(result, 0,length);
                 string filename = Encoding.ASCII.GetString(result, 0, ReceiveNum);
                 Console.WriteLine("receive from client {0} message {1}", ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString(), Encoding.ASCII.GetString(result, 0, ReceiveNum));
@@ -358,66 +358,100 @@ namespace ServerApplication
                                 var Msg = new byte[1024];
                                 int length_msg = ns.Read(len_array, 0, 4);
                                 int Msg_length = BitConverter.ToInt32(len_array, 0);
-                                Console.WriteLine("Message size is ", Msg_length);
+                                //Console.WriteLine("Message size is ", Msg_length);
                                 int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
                                 Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
                                 Console.WriteLine("Receive Message: " + Message.ToString());
 
                                 char[] delimiter = { ':', '_' };
                                 string[] sArray = Message.Split(delimiter);
-                                if (Message.Contains("ReplyM:"))
-                                    WriteBook(sArray[2], ID.ToString(), sArray[1], path, false);
-                                else if (Message.Contains("Mssg:"))
-                                    WriteBook(sArray[1], ID.ToString(), "-1", path, true);
-                                else
-                                    Console.WriteLine("Leaving" + Message);
-
-                                if (Message == "LEAVE:")
-                                {
-                                    lock (_lock)
-                                    {
-                                        IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
-                                        if (!list_clients.ContainsKey(IPIndex))
-                                            Console.WriteLine("Trying to close a session improperly");
-                                        else
-                                            list_clients.Remove(IPIndex);
-                                        myclient.Client.Shutdown(SocketShutdown.Both);
-                                        ns.Close();
-                                        myclient.Close();
-                                        Console.WriteLine("Student " +ID + "Left the Chat room");
-                                    }
-                                    break;
-                                }
-                                Broadcast();        //CHANGE
+                            if (Message.Contains("ReplyM:"))
+                                WriteBook(sArray[2], ID.ToString(), sArray[1], path, false);
+                            else if (Message.Contains("Mssg:"))
+                                WriteBook(sArray[1], ID.ToString(), "-1", path, true);
+                            else if (Message.Contains("UP:"))
+                            {
+                                int index = Convert.ToInt32(sArray[1]);
+                                System.Xml.Serialization.XmlSerializer writer;
+                                System.Xml.Serialization.XmlSerializer reader;
+                                /////***********************Read************************///////////
+                                reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                System.IO.StreamReader file = new System.IO.StreamReader(path);
+                                var book = (Book)reader.Deserialize(file);
+                                file.Close();
+                                ////************************Write***********************///////////
+                                book.BookUpvote(index);
+                                writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                var wfile = new System.IO.StreamWriter(path);
+                                writer.Serialize(wfile, book);
+                                wfile.Close();
                             }
-                            catch (IOException ex)      //Send keep alive packet
-                        {
-                                //Console.WriteLine("Message Timeout Exception" + ex.Message);
- 
-                                
-                                byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
-                                try
+                            else if (Message.Contains("PIN:"))
+                            {
+                                int index = Convert.ToInt32(sArray[1]);
+                                System.Xml.Serialization.XmlSerializer writer;
+                                System.Xml.Serialization.XmlSerializer reader;
+                                path = "..\\server\\xml\\Stu.xml";
+                                /////***********************Read************************///////////
+                                reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                System.IO.StreamReader file = new System.IO.StreamReader(path);
+                                var book = (Book)reader.Deserialize(file);
+                                file.Close();
+                                ////************************Write***********************///////////
+                                book.Pin(index);
+                                //Console.WriteLine("Index=" + index);
+                                writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                var wfile = new System.IO.StreamWriter(path);
+                                writer.Serialize(wfile, book);
+                                wfile.Close();
+                            }
+                            else
+                                Console.WriteLine("Uncatched case");
+
+                            if (Message == "LEAVE:")
+                            {
+                                lock (_lock)
                                 {
-                                    ns.Write(WriteBuffer, 0, WriteBuffer.Length);
-                                    ns.ReadTimeout = 2000;
-                                    byte[] ReadBuffer = new byte[128];
-                                    ns.Read(ReadBuffer, 0, "ISALIVE".Length);
-                                    Console.WriteLine("Still Alive");
-                                }
-                                catch {
-                                    Console.WriteLine("Failed the keep alive test,the client is offline unexpectedly");
+                                    IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                                    if (!list_clients.ContainsKey(IPIndex))
+                                        Console.WriteLine("Trying to close a session improperly");
+                                    else
+                                        list_clients.Remove(IPIndex);
                                     myclient.Client.Shutdown(SocketShutdown.Both);
                                     ns.Close();
                                     myclient.Close();
-                                    lock (_lock)                
-                                    {
-                                        list_clients.Remove(IPIndex);
-                                    }
-                                    break;
+                                    Console.WriteLine("Student " + ID + "Left the Chat room");
                                 }
+                                break;
                             }
+                                Broadcast();        //CHANGE
+                            }
+                            catch (IOException ex)      //Send keep alive packet
+                            {
+                                    //Console.WriteLine("Message Timeout Exception" + ex.Message);
+                                    byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
+                                    try
+                                    {
+                                        ns.Write(WriteBuffer, 0, WriteBuffer.Length);
+                                        ns.ReadTimeout = 2000;
+                                        byte[] ReadBuffer = new byte[128];
+                                        ns.Read(ReadBuffer, 0, "ISALIVE".Length);
+                                        //Console.WriteLine("Still Alive");
+                                    }
+                                    catch {
+                                        Console.WriteLine("Failed the keep alive test,the client is offline unexpectedly");
+                                        myclient.Client.Shutdown(SocketShutdown.Both);
+                                        ns.Close();
+                                        myclient.Close();
+                                        lock (_lock)                
+                                        {
+                                            list_clients.Remove(IPIndex);
+                                        }
+                                        break;
+                                    }
+                                }
 
-                        }
+                            }
                     }
                     //catch (Exception ex)
                     //{
@@ -427,7 +461,6 @@ namespace ServerApplication
                     //    myclient.Close();
                         
                     //}
-
 
                 //}
                 /*
@@ -514,62 +547,61 @@ namespace ServerApplication
 
                 //}
 
-                ///************************Receive Upvote**********************************//////
-                else if (filename.Contains("UP:"))
-                {
+                /////************************Receive Upvote**********************************//////
+                //else if (filename.Contains("UP:"))
+                //{
 
-                    Console.WriteLine("Server is Receiving Message");  //Ana
-                    char[] delimiter = { ':' };   //Up:Index
-                    string[] sArray = filename.Split(delimiter);
-                    int index = Convert.ToInt32(sArray[1]);
-                    System.Xml.Serialization.XmlSerializer writer;
-                    System.Xml.Serialization.XmlSerializer reader;
-                    path = "..\\server\\xml\\Stu.xml";
+                //    Console.WriteLine("Server is Receiving Message");  //Ana
+                //    char[] delimiter = { ':' };   //Up:Index
+                //    string[] sArray = filename.Split(delimiter);
+                //    int index = Convert.ToInt32(sArray[1]);
+                //    System.Xml.Serialization.XmlSerializer writer;
+                //    System.Xml.Serialization.XmlSerializer reader;
+                //    path = "..\\server\\xml\\Stu.xml";
 
-                    /////***********************Read************************///////////
-                    reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                    System.IO.StreamReader file = new System.IO.StreamReader(path);
-                    var book = (Book)reader.Deserialize(file);
-                    file.Close();
+                //    /////***********************Read************************///////////
+                //    reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //    System.IO.StreamReader file = new System.IO.StreamReader(path);
+                //    var book = (Book)reader.Deserialize(file);
+                //    file.Close();
 
-                    ////************************Write***********************///////////
-                    book.BookUpvote(index);
-                    writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                    var wfile = new System.IO.StreamWriter(path);
-                    writer.Serialize(wfile, book);
-                    wfile.Close();
-                    //book.print();
+                //    ////************************Write***********************///////////
+                //    book.BookUpvote(index);
+                //    writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //    var wfile = new System.IO.StreamWriter(path);
+                //    writer.Serialize(wfile, book);
+                //    wfile.Close();
+                //    //book.print();
 
-                }
+                //}
 
-                //////********************** Receive Pin Msg *************************************************///  
-                else if (filename.Contains("PIN:"))
-                {
-                    Console.WriteLine("Server is Receiving Pin Message Request");  //Ana
-                    char[] delimiter = { ':' };   //Up:Index
-                    string[] sArray = filename.Split(delimiter);
-                    int index = Convert.ToInt32(sArray[1]);
-                    System.Xml.Serialization.XmlSerializer writer;
-                    System.Xml.Serialization.XmlSerializer reader;
-                    path = "..\\server\\xml\\Stu.xml";
+                ////////********************** Receive Pin Msg *************************************************///  
+                //else if (filename.Contains("PIN:"))
+                //{
+                //    Console.WriteLine("Server is Receiving Pin Message Request");  //Ana
+                //    char[] delimiter = { ':' };   //Up:Index
+                //    string[] sArray = filename.Split(delimiter);
+                //    int index = Convert.ToInt32(sArray[1]);
+                //    System.Xml.Serialization.XmlSerializer writer;
+                //    System.Xml.Serialization.XmlSerializer reader;
+                //    path = "..\\server\\xml\\Stu.xml";
 
-                    /////***********************Read************************///////////
-                    reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                    System.IO.StreamReader file = new System.IO.StreamReader(path);
-                    var book = (Book)reader.Deserialize(file);
-                    file.Close();
-                    ////************************Write***********************///////////
-                    book.Pin(index);
-                    //Console.WriteLine("Index=" + index);
-                    writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                    var wfile = new System.IO.StreamWriter(path);
-                    writer.Serialize(wfile, book);
-                    wfile.Close();
-                    //book.print();
-                }
+                //    /////***********************Read************************///////////
+                //    reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //    System.IO.StreamReader file = new System.IO.StreamReader(path);
+                //    var book = (Book)reader.Deserialize(file);
+                //    file.Close();
+                //    ////************************Write***********************///////////
+                //    book.Pin(index);
+                //    //Console.WriteLine("Index=" + index);
+                //    writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                //    var wfile = new System.IO.StreamWriter(path);
+                //    writer.Serialize(wfile, book);
+                //    wfile.Close();
+                //    //book.print();
+                //}
                 
-                //***********************************Long Connection*****************************//
-
+                //***********************************Short Connection*****************************//
                 //////**********************Receive Resource File from Instrcutor and Put them in Seperate Folders*************************************************///                    
                 else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
                 {
@@ -717,7 +749,7 @@ namespace ServerApplication
                     */
                 }
 
-                //*****Instructor is fetching the files form the cloud****************//
+                //*****Instructor is fetching the files form the cloud and Send them to the instructor****************//
                 else if (filename.Contains("InFetch"))
                 {
                     Console.WriteLine("Instructor Request to see the Student's contribution"); //Ana
