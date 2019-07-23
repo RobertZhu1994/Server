@@ -125,7 +125,6 @@ namespace ServerApplication
         private static int myProt = 5500;   
         public static Network instance = new Network();
         //public static List<string> StuID;     //Initialized Later;
-
         //Dictionary<int, TcpClient> list_clients = new Dictionary<int, TcpClient>();
         static Dictionary<string, TcpClient> list_clients = new Dictionary<string, TcpClient>();
         //int count=0;
@@ -183,8 +182,7 @@ namespace ServerApplication
         }
         */
         private static void HandleFileConnection(object myclient)
-        {
-
+        { 
         }
         private static void WriteBook(string msg, string ID, string step, string path,bool mode)
         {
@@ -259,6 +257,8 @@ namespace ServerApplication
                         Console.WriteLine("This Client Disconnected with some error and "+E.Message);       //Check if students are offline
                         string IPIndex = ((IPEndPoint)c.Client.RemoteEndPoint).Address.ToString();
                         list_clients.Remove(IPIndex);
+                        //c.Client.Shutdown(SocketShutdown.Both);
+                        //c.Close();
                     }
                 }
             }
@@ -336,72 +336,96 @@ namespace ServerApplication
                             list_clients.Add(IPIndex, myclient);
                     }
 
-
-                    while (true)
-                    {
-                        lock (_lock)                //constantly check if the client is still online
+                        while (true)
                         {
-                            if (!list_clients.ContainsKey(IPIndex))
-                            {
-                                Console.WriteLine("Already Disconnected");
-                                myclient.Client.Shutdown(SocketShutdown.Both);
-                                ns.Close();
-                                myclient.Close();
-                                break;
-                            }
-                        }
-                        try
-                        {
-                            var len_array = new byte[sizeof(int)];
-                            var Msg = new byte[1024];
-                            int length_msg = ns.Read(len_array, 0, 4);
-                            int Msg_length = BitConverter.ToInt32(len_array, 0);
-                            Console.WriteLine("Message size is", Msg_length);
-                            int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
-                            Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
-                            Console.WriteLine("Receive Message: " + Message.ToString());
                             
-                            char[] delimiter = { ':', '_' };
-                            string[] sArray = Message.Split(delimiter);
-                            if (Message.Contains("ReplyM:"))
-                                WriteBook(sArray[2],ID.ToString(),sArray[1],path,false);
-                            else if(Message.Contains("Mssg:"))
-                                WriteBook(sArray[1],ID.ToString(),"-1",path,true);
-                            else
-                                Console.WriteLine("Leaving"+Message);
-                            
-                            Broadcast();        //CHANGE
-
-                            if (Message == "Leave")
+                            lock (_lock)                //constantly check if the client is still online
                             {
-                                lock (_lock)
+                                if (!list_clients.ContainsKey(IPIndex))
                                 {
-                                    IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
-                                    if (!list_clients.ContainsKey(IPIndex))
-                                        Console.WriteLine("Trying to close a session improperly");
-                                    else
-                                        list_clients.Remove(IPIndex);
+                                    Console.WriteLine("Already Disconnected");
                                     myclient.Client.Shutdown(SocketShutdown.Both);
                                     ns.Close();
                                     myclient.Close();
-                                    Console.WriteLine(IPIndex + "Left the Chat room");
+                                    break;
                                 }
-                                break;
+
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine("Message Exception" + ex.Message);
-                            myclient.Client.Shutdown(SocketShutdown.Both);
-                            ns.Close();
-                            myclient.Close();
-                            break;
-                        }
+                            try
+                            {
+                                ns.ReadTimeout = 6000;      //Costantly block until receive any message;
+                                var len_array = new byte[sizeof(int)];
+                                var Msg = new byte[1024];
+                                int length_msg = ns.Read(len_array, 0, 4);
+                                int Msg_length = BitConverter.ToInt32(len_array, 0);
+                                Console.WriteLine("Message size is ", Msg_length);
+                                int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
+                                Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
+                                Console.WriteLine("Receive Message: " + Message.ToString());
 
+                                char[] delimiter = { ':', '_' };
+                                string[] sArray = Message.Split(delimiter);
+                                if (Message.Contains("ReplyM:"))
+                                    WriteBook(sArray[2], ID.ToString(), sArray[1], path, false);
+                                else if (Message.Contains("Mssg:"))
+                                    WriteBook(sArray[1], ID.ToString(), "-1", path, true);
+                                else
+                                    Console.WriteLine("Leaving" + Message);
+
+                                if (Message == "LEAVE:")
+                                {
+                                    lock (_lock)
+                                    {
+                                        IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                                        if (!list_clients.ContainsKey(IPIndex))
+                                            Console.WriteLine("Trying to close a session improperly");
+                                        else
+                                            list_clients.Remove(IPIndex);
+                                        myclient.Client.Shutdown(SocketShutdown.Both);
+                                        ns.Close();
+                                        myclient.Close();
+                                        Console.WriteLine("Student " +ID + "Left the Chat room");
+                                    }
+                                    break;
+                                }
+                                Broadcast();        //CHANGE
+                            }
+                            catch (IOException ex)
+                            {
+                                //Console.WriteLine("Message Timeout Exception" + ex.Message);
+ 
+                                //Send keep alive packet
+                                byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
+                                try
+                                {
+                                    ns.Write(WriteBuffer, 0, WriteBuffer.Length);
+                                    ns.ReadTimeout = 2000;
+                                    byte[] ReadBuffer = new byte[128];
+                                    ns.Read(ReadBuffer, 0, "ISALIVE".Length);
+                                    Console.WriteLine("Still Alive");
+                                }
+                                catch {
+                                    Console.WriteLine("Failed the keep alive test,the client is offline unexpectedly");
+                                    myclient.Client.Shutdown(SocketShutdown.Both);
+                                    ns.Close();
+                                    myclient.Close();
+                                    break;
+                                }
+                            }
+
+                        }
                     }
+                    //catch (Exception ex)
+                    //{
+                    //    Console.WriteLine("message timeout exception" + ex.Message+" exit immediately");
+                    //    myclient.Client.Shutdown(SocketShutdown.Both);
+                    //    ns.Close();
+                    //    myclient.Close();
+                        
+                    //}
 
 
-                }
+                //}
                 /*
                 if (filename.Contains("Leave:"))
                 {
