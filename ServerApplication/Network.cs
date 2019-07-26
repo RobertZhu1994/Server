@@ -133,7 +133,7 @@ namespace ServerApplication
         static Dictionary<string,int> StuId=new Dictionary<string, int>();
         public void ServerStart()
         {
-            IPAddress ip = IPAddress.Parse("127.0.0.1");        //CHANGE
+            IPAddress ip = IPAddress.Parse("0.0.0.0");        //CHANGE
             TcpListener serverSocket=new TcpListener(ip,myProt);
             serverSocket.Start();
             int counter=0;
@@ -142,11 +142,17 @@ namespace ServerApplication
             {
                 
                 TcpClient tcpClient=serverSocket.AcceptTcpClient();
-                Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
+                //Console.WriteLine("I am listening for connections from " + IPAddress.Parse(((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString()) +"on port number " + ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Port.ToString());
                 string ClientIP = ((IPEndPoint)tcpClient.Client.RemoteEndPoint).Address.ToString();
-                if (StuId.ContainsKey(ClientIP))
-                    Console.WriteLine("Sudent {0} is back online", StuId[ClientIP]);
-                else {
+                //if (StuId.ContainsKey(ClientIP))
+                //    Console.WriteLine("Sudent {0} is back online", StuId[ClientIP]);
+                //else {
+                //    counter++;
+                //    StuId.Add(ClientIP, counter);
+                //    Console.WriteLine("New Sudent with ID {0}", StuId[ClientIP]);
+                //}
+                if (!StuId.ContainsKey(ClientIP))           //If threre is a new connection from a student
+                {
                     counter++;
                     StuId.Add(ClientIP, counter);
                     Console.WriteLine("New Sudent with ID {0}", StuId[ClientIP]);
@@ -232,19 +238,21 @@ namespace ServerApplication
 
         private static void Broadcast()                 //Broadcast to all connected client in list_clients
         {
-            byte[] ReadBuffer = new byte[1024];
+            
             string ACK = "ACK";
-            byte[] writeBuffer = Encoding.ASCII.GetBytes("Refresh");
+            
             lock (_lock)
             {
                 foreach (TcpClient c in list_clients.Values)
                 {
                     try
                     {
+                        byte[] ReadBuffer = new byte[1024];
+                        byte[] writeBuffer = Encoding.ASCII.GetBytes("Refresh");
                         NetworkStream stream = c.GetStream();
                         stream.Write(writeBuffer, 0, writeBuffer.Length);
 
-                        stream.ReadTimeout = 3000;
+                        stream.ReadTimeout = 500;
                         stream.Read(ReadBuffer, 0, ACK.Length);
                         if (ACK == Encoding.ASCII.GetString(ReadBuffer,0, "ACK".Length))
                             Console.WriteLine("Receive Acknowledgement");
@@ -254,11 +262,19 @@ namespace ServerApplication
                     }
                     catch (IOException E)
                     {
-                        Console.WriteLine("This Client Disconnected with some error and "+E.Message);       //Check if students are offline
                         string IPIndex = ((IPEndPoint)c.Client.RemoteEndPoint).Address.ToString();
+                        Console.WriteLine("This Client {0} Disconnected with some error and {1} ", StuId[IPIndex], E.Message);       //Check if students are offline
                         list_clients.Remove(IPIndex);
-                        //c.Client.Shutdown(SocketShutdown.Both);
-                        //c.Close();
+                        const string lineSearch = ":line ";
+                        int lineNumber = 0;
+                        var index = E.StackTrace.LastIndexOf(lineSearch);
+                        if (index != -1)
+                        { 
+                            var lineNumberText = E.StackTrace.Substring(index + lineSearch.Length);
+                            if (int.TryParse(lineNumberText, out lineNumber))
+                            {
+                            }
+                        }
                     }
                 }
             }
@@ -273,7 +289,7 @@ namespace ServerApplication
             {
                 var result = new byte[1024];
                 var len = new byte[sizeof(int)];
-
+                
                 string path = "..\\server\\xml\\Stu.xml";
                 //string recv, Step;
 
@@ -324,6 +340,7 @@ namespace ServerApplication
                 {
                     string IPIndex;
                     string Message;
+                    Console.WriteLine("Sudent {0} is online", StuId[ClientIP]);
                     lock (_lock)
                     {
 
@@ -353,7 +370,7 @@ namespace ServerApplication
                             }
                             try
                             {
-                                ns.ReadTimeout = 5000;      //Costantly block until receive any message;
+                                ns.ReadTimeout = 3000;      //Costantly block until receive any message;
                                 var len_array = new byte[sizeof(int)];
                                 var Msg = new byte[1024];
                                 int length_msg = ns.Read(len_array, 0, 4);
@@ -405,10 +422,7 @@ namespace ServerApplication
                                 writer.Serialize(wfile, book);
                                 wfile.Close();
                             }
-                            else
-                                Console.WriteLine("Uncatched case");
-
-                            if (Message == "LEAVE:")
+                            else if (Message == "LEAVE:")
                             {
                                 lock (_lock)
                                 {
@@ -420,12 +434,14 @@ namespace ServerApplication
                                     myclient.Client.Shutdown(SocketShutdown.Both);
                                     ns.Close();
                                     myclient.Close();
-                                    Console.WriteLine("Student " + ID + "Left the Chat room");
+                                    Console.WriteLine("Student " + ID + " Left the Chat room");
                                 }
                                 break;
                             }
-                                Broadcast();        //CHANGE
-                            }
+                            else
+                                Console.WriteLine("Uncatched case");
+                            Broadcast();        //CHANGE    
+                        }
                             catch (IOException ex)      //Send keep alive packet
                             {
                                     //Console.WriteLine("Message Timeout Exception" + ex.Message);
@@ -439,7 +455,7 @@ namespace ServerApplication
                                         //Console.WriteLine("Still Alive");
                                     }
                                     catch {
-                                        Console.WriteLine("Failed the keep alive test,the client is offline unexpectedly");
+                                        Console.WriteLine("Failed the keep alive test,the student {0} is offline unexpectedly",StuId[ClientIP]);
                                         myclient.Client.Shutdown(SocketShutdown.Both);
                                         ns.Close();
                                         myclient.Close();
@@ -777,6 +793,18 @@ namespace ServerApplication
             catch (Exception ex)
             {
                 Console.WriteLine("Total Exception"+ex.Message);
+                //********************To trace back to the last line that responsible for this crash*********************//
+                const string lineSearch = ":line ";
+                Console.WriteLine("Error come from student " + StuId[ClientIP]);
+                int lineNumber = 0;
+                var index = ex.StackTrace.LastIndexOf(lineSearch);
+                if (index != -1)
+                {
+                    var lineNumberText = ex.StackTrace.Substring(index + lineSearch.Length);
+                    if (int.TryParse(lineNumberText, out lineNumber))
+                    {
+                    }
+                }
                 myclient.Client.Shutdown(SocketShutdown.Both);
                 ns.Close();
                 myclient.Close();
