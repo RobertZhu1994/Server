@@ -252,13 +252,13 @@ namespace ServerApplication
                         NetworkStream stream = c.GetStream();
                         stream.Write(writeBuffer, 0, writeBuffer.Length);
 
-                        stream.ReadTimeout = 500;
-                        stream.Read(ReadBuffer, 0, ACK.Length);
-                        if (ACK == Encoding.ASCII.GetString(ReadBuffer,0, "ACK".Length))
-                            Console.WriteLine("Receive Acknowledgement");
-                        else
-                            Console.WriteLine("Received "+Encoding.ASCII.GetString(ReadBuffer));
-                        //stream.Close();
+                        //stream.ReadTimeout = 1000;
+                        //stream.Read(ReadBuffer, 0, ACK.Length);
+                        //if (ACK == Encoding.ASCII.GetString(ReadBuffer,0, "ACK".Length))
+                        //    Console.WriteLine("Receive Acknowledgement");
+                        //else
+                        //    Console.WriteLine("Received "+Encoding.ASCII.GetString(ReadBuffer));
+                        ////stream.Close();
                     }
                     catch (IOException E)
                     {
@@ -370,7 +370,7 @@ namespace ServerApplication
                             }
                             try
                             {
-                                ns.ReadTimeout = 3000;      //Costantly block until receive any message;
+                                ns.ReadTimeout = 8000;      //Costantly block until receive any message;
                                 var len_array = new byte[sizeof(int)];
                                 var Msg = new byte[1024];
                                 int length_msg = ns.Read(len_array, 0, 4);
@@ -382,90 +382,91 @@ namespace ServerApplication
 
                                 char[] delimiter = { ':', '_' };
                                 string[] sArray = Message.Split(delimiter);
-                            if (Message.Contains("ReplyM:"))
-                                WriteBook(sArray[2], ID.ToString(), sArray[1], path, false);
-                            else if (Message.Contains("Mssg:"))
-                                WriteBook(sArray[1], ID.ToString(), "-1", path, true);
-                            else if (Message.Contains("UP:"))
-                            {
-                                int index = Convert.ToInt32(sArray[1]);
-                                System.Xml.Serialization.XmlSerializer writer;
-                                System.Xml.Serialization.XmlSerializer reader;
-                                /////***********************Read************************///////////
-                                reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                                System.IO.StreamReader file = new System.IO.StreamReader(path);
-                                var book = (Book)reader.Deserialize(file);
-                                file.Close();
-                                ////************************Write***********************///////////
-                                book.BookUpvote(index);
-                                writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                                var wfile = new System.IO.StreamWriter(path);
-                                writer.Serialize(wfile, book);
-                                wfile.Close();
-                            }
-                            else if (Message.Contains("PIN:"))
-                            {
-                                int index = Convert.ToInt32(sArray[1]);
-                                System.Xml.Serialization.XmlSerializer writer;
-                                System.Xml.Serialization.XmlSerializer reader;
-                                path = "..\\server\\xml\\Stu.xml";
-                                /////***********************Read************************///////////
-                                reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                                System.IO.StreamReader file = new System.IO.StreamReader(path);
-                                var book = (Book)reader.Deserialize(file);
-                                file.Close();
-                                ////************************Write***********************///////////
-                                book.Pin(index);
-                                //Console.WriteLine("Index=" + index);
-                                writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
-                                var wfile = new System.IO.StreamWriter(path);
-                                writer.Serialize(wfile, book);
-                                wfile.Close();
-                            }
-                            else if (Message == "LEAVE:")
-                            {
-                                lock (_lock)
+                                if (Message.Contains("ReplyM:"))
+                                    WriteBook(sArray[2], ID.ToString(), sArray[1], path, false);
+                                else if (Message.Contains("Mssg:"))
+                                    WriteBook(sArray[1], ID.ToString(), "-1", path, true);
+                                else if (Message.Contains("UP:"))
                                 {
-                                    IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
-                                    if (!list_clients.ContainsKey(IPIndex))
-                                        Console.WriteLine("Trying to close a session improperly");
-                                    else
-                                        list_clients.Remove(IPIndex);
-                                    myclient.Client.Shutdown(SocketShutdown.Both);
-                                    ns.Close();
-                                    myclient.Close();
-                                    Console.WriteLine("Student " + ID + " Left the Chat room");
+                                    int index = Convert.ToInt32(sArray[1]);
+                                    System.Xml.Serialization.XmlSerializer writer;
+                                    System.Xml.Serialization.XmlSerializer reader;
+                                    /////***********************Read************************///////////
+                                    reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                    System.IO.StreamReader file = new System.IO.StreamReader(path);
+                                    var book = (Book)reader.Deserialize(file);
+                                    file.Close();
+                                    ////************************Write***********************///////////
+                                    book.BookUpvote(index);
+                                    writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                    var wfile = new System.IO.StreamWriter(path);
+                                    writer.Serialize(wfile, book);
+                                    wfile.Close();
                                 }
-                                break;
-                            }
-                            else
-                                Console.WriteLine("Uncatched case");
-                            Broadcast();        //CHANGE    
-                        }
-                            catch (IOException ex)      //Send keep alive packet
-                            {
-                                    //Console.WriteLine("Message Timeout Exception" + ex.Message);
-                                    byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
-                                    try
+                                else if (Message.Contains("PIN:"))
+                                {
+                                    int index = Convert.ToInt32(sArray[1]);
+                                    System.Xml.Serialization.XmlSerializer writer;
+                                    System.Xml.Serialization.XmlSerializer reader;
+                                    path = "..\\server\\xml\\Stu.xml";
+                                    /////***********************Read************************///////////
+                                    reader = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                    System.IO.StreamReader file = new System.IO.StreamReader(path);
+                                    var book = (Book)reader.Deserialize(file);
+                                    file.Close();
+                                    ////************************Write***********************///////////
+                                    book.Pin(index);
+                                    //Console.WriteLine("Index=" + index);
+                                    writer = new System.Xml.Serialization.XmlSerializer(typeof(Book));
+                                    var wfile = new System.IO.StreamWriter(path);
+                                    writer.Serialize(wfile, book);
+                                    wfile.Close();
+                                }
+                                else if (Message == "LEAVE:")
+                                {
+                                    lock (_lock)
                                     {
-                                        ns.Write(WriteBuffer, 0, WriteBuffer.Length);
-                                        ns.ReadTimeout = 2000;
-                                        byte[] ReadBuffer = new byte[128];
-                                        ns.Read(ReadBuffer, 0, "ISALIVE".Length);
-                                        //Console.WriteLine("Still Alive");
-                                    }
-                                    catch {
-                                        Console.WriteLine("Failed the keep alive test,the student {0} is offline unexpectedly",StuId[ClientIP]);
+                                        IPIndex = ((IPEndPoint)myclient.Client.RemoteEndPoint).Address.ToString();
+                                        if (!list_clients.ContainsKey(IPIndex))
+                                            Console.WriteLine("Trying to close a session improperly");
+                                        else
+                                            list_clients.Remove(IPIndex);
                                         myclient.Client.Shutdown(SocketShutdown.Both);
                                         ns.Close();
                                         myclient.Close();
-                                        lock (_lock)                
-                                        {
-                                            list_clients.Remove(IPIndex);
-                                        }
-                                        break;
+                                        Console.WriteLine("Student " + ID + " Left the Chat room");
                                     }
+                                    break;
                                 }
+                                else
+                                    Console.WriteLine("Uncatched case");
+                                Broadcast();        //CHANGE    
+                            }
+                            catch (IOException ex)      //Send keep alive packet
+                            {
+                                //Console.WriteLine("Message Timeout Exception" + ex.Message);
+                                byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
+                                try
+                                {
+                                    ns.Write(WriteBuffer, 0, WriteBuffer.Length);
+                                    ns.ReadTimeout = 2000;
+                                    byte[] ReadBuffer = new byte[128];
+                                    ns.Read(ReadBuffer, 0, "ISALIVE".Length);
+                                    Console.WriteLine("Student " + ID + " Still Alive");
+                                }
+                                catch
+                                {
+                                    Console.WriteLine("Failed the keep alive test,the student {0} is offline unexpectedly", StuId[ClientIP]);
+                                    myclient.Client.Shutdown(SocketShutdown.Both);
+                                    ns.Close();
+                                    myclient.Close();
+                                    lock (_lock)
+                                    {
+                                        list_clients.Remove(IPIndex);
+                                    }
+                                    break;
+                                }
+                            }
 
                             }
                     }
