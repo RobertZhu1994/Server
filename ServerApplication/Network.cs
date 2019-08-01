@@ -809,6 +809,8 @@ namespace ServerApplication
                 myclient.Client.Shutdown(SocketShutdown.Both);
                 ns.Close();
                 myclient.Close();
+
+                //commit test;
             }
             /*
             myclient.Client.Shutdown(SocketShutdown.Both);
