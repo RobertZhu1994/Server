@@ -129,7 +129,7 @@ namespace ServerApplication
         static Dictionary<string, TcpClient> list_clients = new Dictionary<string, TcpClient>();
         //int count=0;
         static private readonly object _lock = new object();        //Lock to protect list_client
-        //static private readonly object _lockClient = new object();  //Lock to protect each TCPClient socket
+        static private readonly object _lockWrite = new object();  //Lock to protect each TCPClient socket
         static Dictionary<string,int> StuId=new Dictionary<string, int>();
         public void ServerStart()
         {
@@ -353,35 +353,37 @@ namespace ServerApplication
                             list_clients.Add(IPIndex, myclient);
                     }
 
-                        while (true)
+                    while (true)
+                    {
+
+                        lock (_lock)                //constantly check if the client is still online
                         {
-                            
-                            lock (_lock)                //constantly check if the client is still online
+                            if (!list_clients.ContainsKey(IPIndex))
                             {
-                                if (!list_clients.ContainsKey(IPIndex))
-                                {
-                                    Console.WriteLine("Already Disconnected");
-                                    myclient.Client.Shutdown(SocketShutdown.Both);
-                                    ns.Close();
-                                    myclient.Close();
-                                    break;
-                                }
-
+                                Console.WriteLine("Already Disconnected");
+                                myclient.Client.Shutdown(SocketShutdown.Both);
+                                ns.Close();
+                                myclient.Close();
+                                break;
                             }
-                            try
-                            {
-                                ns.ReadTimeout = 8000;      //Costantly block until receive any message;
-                                var len_array = new byte[sizeof(int)];
-                                var Msg = new byte[1024];
-                                int length_msg = ns.Read(len_array, 0, 4);
-                                int Msg_length = BitConverter.ToInt32(len_array, 0);
-                                //Console.WriteLine("Message size is ", Msg_length);
-                                int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
-                                Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
-                                Console.WriteLine("Receive Message: " + Message.ToString());
 
-                                char[] delimiter = { ':', '_' };
-                                string[] sArray = Message.Split(delimiter);
+                        }
+                        try
+                        {
+                            ns.ReadTimeout = 8000;      //Costantly block until receive any message;
+                            var len_array = new byte[sizeof(int)];
+                            var Msg = new byte[1024];
+                            int length_msg = ns.Read(len_array, 0, 4);
+                            int Msg_length = BitConverter.ToInt32(len_array, 0);
+                            //Console.WriteLine("Message size is ", Msg_length);
+                            int ReceiveMsg = ns.Read(Msg, 0, Msg_length);
+                            Message = Encoding.ASCII.GetString(Msg, 0, ReceiveMsg);
+                            Console.WriteLine("Receive Message: " + Message.ToString());
+
+                            char[] delimiter = { ':', '_' };
+                            string[] sArray = Message.Split(delimiter);
+                            lock (_lockWrite)
+                            {
                                 if (Message.Contains("ReplyM:"))
                                     WriteBook(sArray[2], ID.ToString(), sArray[1], path, false);
                                 else if (Message.Contains("Mssg:"))
@@ -440,44 +442,45 @@ namespace ServerApplication
                                 }
                                 else
                                     Console.WriteLine("Uncatched case");
-                                Broadcast();        //CHANGE    
                             }
-                            catch (IOException ex)      //Send keep alive packet
+                            Broadcast();        //CHANGE    
+                        }
+                        catch (IOException ex)      //Send keep alive packet
+                        {
+                            //Console.WriteLine("Message Timeout Exception" + ex.Message);
+                            byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
+                            try
                             {
-                                //Console.WriteLine("Message Timeout Exception" + ex.Message);
-                                byte[] WriteBuffer = Encoding.ASCII.GetBytes("ISALIVE");
-                                try
-                                {
-                                    ns.Write(WriteBuffer, 0, WriteBuffer.Length);
-                                    ns.ReadTimeout = 2000;
-                                    byte[] ReadBuffer = new byte[128];
-                                    ns.Read(ReadBuffer, 0, "ISALIVE".Length);
-                                    Console.WriteLine("Student " + ID + " Still Alive");
-                                }
-                                catch
-                                {
-                                    Console.WriteLine("Failed the keep alive test,the student {0} is offline unexpectedly", StuId[ClientIP]);
-                                    myclient.Client.Shutdown(SocketShutdown.Both);
-                                    ns.Close();
-                                    myclient.Close();
-                                    lock (_lock)
-                                    {
-                                        list_clients.Remove(IPIndex);
-                                    }
-                                    break;
-                                }
+                                ns.Write(WriteBuffer, 0, WriteBuffer.Length);
+                                ns.ReadTimeout = 2000;
+                                byte[] ReadBuffer = new byte[128];
+                                ns.Read(ReadBuffer, 0, "ISALIVE".Length);
+                                Console.WriteLine("Student " + ID + " Still Alive");
                             }
+                            catch
+                            {
+                                Console.WriteLine("Failed the keep alive test,the student {0} is offline unexpectedly", StuId[ClientIP]);
+                                myclient.Client.Shutdown(SocketShutdown.Both);
+                                ns.Close();
+                                myclient.Close();
+                                lock (_lock)
+                                {
+                                    list_clients.Remove(IPIndex);
+                                }
+                                break;
+                            }
+                        }
 
-                            }
                     }
-                    //catch (Exception ex)
-                    //{
-                    //    Console.WriteLine("message timeout exception" + ex.Message+" exit immediately");
-                    //    myclient.Client.Shutdown(SocketShutdown.Both);
-                    //    ns.Close();
-                    //    myclient.Close();
-                        
-                    //}
+                }
+                //catch (Exception ex)
+                //{
+                //    Console.WriteLine("message timeout exception" + ex.Message+" exit immediately");
+                //    myclient.Client.Shutdown(SocketShutdown.Both);
+                //    ns.Close();
+                //    myclient.Close();
+
+                //}
 
                 //}
                 /*
@@ -617,14 +620,14 @@ namespace ServerApplication
                 //    wfile.Close();
                 //    //book.print();
                 //}
-                
+
                 //***********************************Short Connection*****************************//
                 //////**********************Receive Resource File from Instrcutor and Put them in Seperate Folders*************************************************///                    
                 else if (filename.Contains("wav") || filename.Contains("jpg") || filename.Contains("obj") || filename.Contains("xml") || filename.Contains("mp4") || filename.Contains("png"))
                 {
                     Console.WriteLine("Server is Receiving Project Files Created by the Instructor");  //Ana
-                    string StuRepo = "Resource_" + ID.ToString();
-                    string PATH = "..\\server\\" + StuRepo;
+                    //string StuRepo = "Resource_" + ID.ToString();
+                    string PATH = "..\\server\\" + "Resource_-1";
                     //Directory.CreateDirectory(PATH);
                     string[] FileFolders = { "Audio", "CAD", "Data", "Image", "Video" };
                     string[] SubPath = { "", "", "", "", "" };
@@ -669,7 +672,7 @@ namespace ServerApplication
                     fs = new FileStream(path, FileMode.Create);
                     var buffer = new byte[1024];
                     int bytesRead;
-                    while ((bytesRead = ns.Read(buffer,0,buffer.Length)) > 0)
+                    while ((bytesRead = ns.Read(buffer, 0, buffer.Length)) > 0)
                     {
                         fs.Write(buffer, 0, bytesRead);
                         fs.Flush();
@@ -682,7 +685,6 @@ namespace ServerApplication
                     myclient.Close();
                     Console.WriteLine("disconnected");
                 }
-
                 //**********************Send  Mp4 / Pic/ Voice File and comment back to the client*************************************************///             
                 else if (filename.Contains("Request"))
                 {
@@ -737,7 +739,7 @@ namespace ServerApplication
                     string FolderName = "..\\server\\Contribution\\";
                     if (!Directory.Exists(FolderName))
                         Directory.CreateDirectory(FolderName);
-                    path = FolderName + "Contribution_" + ID.ToString()+".zip";
+                    path = FolderName + "Contribution_" + ID.ToString() + ".zip";
                     string zipPath = path;
                     //string extractPath = Path.Combine("..\\server", "Contribution_" + Path.GetFileNameWithoutExtension(path));
                     //Console.WriteLine("Receive Contribution File {0} from Student", extractPath);
@@ -765,7 +767,6 @@ namespace ServerApplication
                         File.Delete(zipPath);
                     */
                 }
-
                 //*****Instructor is fetching the files form the cloud and Send them to the instructor****************//
                 else if (filename.Contains("InFetch"))
                 {
@@ -773,8 +774,8 @@ namespace ServerApplication
                     //The instructor has to decompress itself
                     //Send All the compressed files
                     string FolderName = "..\\server\\Contribution\\";
-                    string[] fileNames = Directory.GetFiles(FolderName);
-                        
+                    //string[] fileNames = Directory.GetFiles(FolderName);
+
                     //Zip File folder first
                     string startPath = FolderName;
                     string zipPath = "..\\server\\StuCommit.zip";
@@ -789,6 +790,12 @@ namespace ServerApplication
                     ns.Close();
                     myclient.Close();
                     Console.WriteLine("disconnected");
+                }
+
+                //Test for the ftp server
+                else if (filename.Contains("ftp"))
+                {
+
                 }
             }
             catch (Exception ex)
